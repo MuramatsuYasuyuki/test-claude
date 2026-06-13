@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ストップウォッチ</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: #1e1e2e;
+      color: #f5f5f5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2rem;
+    }
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 500;
+      color: #a6adc8;
+    }
+    #display {
+      font-size: clamp(3rem, 15vw, 6rem);
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+    }
+    #display .ms {
+      font-size: 0.5em;
+      color: #89b4fa;
+    }
+    .controls {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    button {
+      font-size: 1.1rem;
+      font-weight: 500;
+      padding: 0.75rem 2rem;
+      border: none;
+      border-radius: 9999px;
+      cursor: pointer;
+      color: #1e1e2e;
+      transition: transform 0.1s ease, opacity 0.2s ease;
+    }
+    button:active {
+      transform: scale(0.95);
+    }
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    #startStop {
+      background: #a6e3a1;
+    }
+    #startStop.running {
+      background: #f9e2af;
+    }
+    #reset {
+      background: #f38ba8;
+    }
+    #lap {
+      background: #89b4fa;
+    }
+    #laps {
+      list-style: none;
+      max-height: 30vh;
+      overflow-y: auto;
+      width: min(90vw, 360px);
+      font-variant-numeric: tabular-nums;
+    }
+    #laps li {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid #313244;
+      color: #cdd6f4;
+    }
+    #laps li span:first-child {
+      color: #a6adc8;
+    }
+  </style>
+</head>
+<body>
+  <h1>ストップウォッチ</h1>
+  <div id="display">00:00<span class="ms">.00</span></div>
+  <div class="controls">
+    <button id="startStop">スタート</button>
+    <button id="lap" disabled>ラップ</button>
+    <button id="reset" disabled>リセット</button>
+  </div>
+  <ul id="laps"></ul>
+
+  <script>
+    const display = document.getElementById('display');
+    const startStopBtn = document.getElementById('startStop');
+    const lapBtn = document.getElementById('lap');
+    const resetBtn = document.getElementById('reset');
+    const lapsList = document.getElementById('laps');
+
+    let startTime = 0;      // 計測開始時刻（performance.now 基準）
+    let elapsed = 0;        // 停止までの累積経過時間(ms)
+    let timerId = null;
+    let lapCount = 0;
+
+    function format(ms) {
+      const totalSec = Math.floor(ms / 1000);
+      const minutes = Math.floor(totalSec / 60);
+      const seconds = totalSec % 60;
+      const centi = Math.floor((ms % 1000) / 10);
+      const pad = (n) => String(n).padStart(2, '0');
+      return {
+        main: `${pad(minutes)}:${pad(seconds)}`,
+        ms: pad(centi),
+      };
+    }
+
+    function render(ms) {
+      const { main, ms: centi } = format(ms);
+      display.innerHTML = `${main}<span class="ms">.${centi}</span>`;
+    }
+
+    function currentElapsed() {
+      return elapsed + (timerId ? performance.now() - startTime : 0);
+    }
+
+    function tick() {
+      render(currentElapsed());
+    }
+
+    function start() {
+      startTime = performance.now();
+      timerId = setInterval(tick, 31);
+      startStopBtn.textContent = 'ストップ';
+      startStopBtn.classList.add('running');
+      lapBtn.disabled = false;
+      resetBtn.disabled = false;
+    }
+
+    function stop() {
+      elapsed = currentElapsed();
+      clearInterval(timerId);
+      timerId = null;
+      startStopBtn.textContent = 'スタート';
+      startStopBtn.classList.remove('running');
+      lapBtn.disabled = true;
+    }
+
+    function reset() {
+      clearInterval(timerId);
+      timerId = null;
+      elapsed = 0;
+      lapCount = 0;
+      render(0);
+      lapsList.innerHTML = '';
+      startStopBtn.textContent = 'スタート';
+      startStopBtn.classList.remove('running');
+      lapBtn.disabled = true;
+      resetBtn.disabled = true;
+    }
+
+    function recordLap() {
+      lapCount++;
+      const { main, ms } = format(currentElapsed());
+      const li = document.createElement('li');
+      li.innerHTML = `<span>ラップ ${lapCount}</span><span>${main}.${ms}</span>`;
+      lapsList.prepend(li);
+    }
+
+    startStopBtn.addEventListener('click', () => {
+      timerId ? stop() : start();
+    });
+    lapBtn.addEventListener('click', recordLap);
+    resetBtn.addEventListener('click', reset);
+
+    // スペースキーでスタート/ストップ
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        timerId ? stop() : start();
+      }
+    });
+
+    render(0);
+  </script>
+</body>
+</html>
